@@ -13,7 +13,8 @@ repositories {
 }
 
 android {
-  compileSdkVersion(26)
+  compileSdkVersion(30)
+  namespace = "io.grpc.helloworldexample"
 
   defaultConfig {
     applicationId = "io.grpc.helloworldexample"
@@ -69,8 +70,8 @@ android {
   }
 
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
 
   packagingOptions {

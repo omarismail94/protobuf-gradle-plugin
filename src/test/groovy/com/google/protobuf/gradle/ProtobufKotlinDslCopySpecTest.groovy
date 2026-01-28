@@ -11,7 +11,7 @@ import spock.lang.Unroll
  */
 @CompileDynamic
 class ProtobufKotlinDslCopySpecTest extends Specification {
-  private static final List<String> GRADLE_VERSIONS = ["5.6", "6.0", "6.7.1", "7.0", "7.4.2"]
+  private static final List<String> GRADLE_VERSIONS = ["8.4", "8.5", "8.9", "8.13"]
 
   @Unroll
   void "testProjectKotlinDslCopySpec should declare explicit copy spec [gradle #gradleVersion]"() {
@@ -43,10 +43,10 @@ class ProtobufKotlinDslCopySpecTest extends Specification {
     List<File> fileList = []
     generatedSrcDir.eachFileRecurse { file ->
       if (file.path.endsWith('.java')) {
-        fileList.add (file)
+        fileList.add(file)
       }
     }
-    assert fileList.size > 0
+    assert fileList.size() > 0
   }
 
 }

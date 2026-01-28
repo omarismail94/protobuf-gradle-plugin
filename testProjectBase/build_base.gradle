@@ -5,8 +5,10 @@ repositories {
     maven { url "https://plugins.gradle.org/m2/" }
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 
 sourceSets {
   grpc {
@@ -58,7 +60,7 @@ protobuf {
 
 // To include all sourceSets in the project jar
 jar {
-  sourceSets.all { sourceSet ->
+  sourceSets.configureEach { sourceSet ->
     from sourceSet.output
     dependsOn sourceSet.getCompileTaskName('java')
   }
@@ -67,68 +69,54 @@ jar {
   duplicatesStrategy(DuplicatesStrategy.INCLUDE)
 }
 
-def assertJavaCompileHasProtoGeneratedDir(String sourceSet, Collection<String> codegenPlugins) {
-  def compileJavaTask = tasks.getByName(sourceSets.getByName(sourceSet).getCompileTaskName("java"))
-  assertJavaCompileHasProtoGeneratedDir(project, sourceSet, compileJavaTask, codegenPlugins)
-}
+afterEvaluate {
+  def protobufConfig = protobuf
+  def buildDirFile = project.layout.buildDirectory.get().asFile
 
-def assertFileExists(boolean exists, String path) {
-  if (exists) {
-    assert (path as File).exists()
-  } else {
-    assert !(path as File).exists()
-  }
-}
+  def allProtoTaskNames = protobufConfig.generateProtoTasks.all().collect({ it.name }) as Set
+  def mainProtoTaskNames = protobufConfig.generateProtoTasks.ofSourceSet('main').collect({ it.name }) as Set
+  def testProtoTaskNames = protobufConfig.generateProtoTasks.ofTest().collect({ it.name }) as Set
+  def nonTestProtoTaskNames = protobufConfig.generateProtoTasks.ofNonTest().collect({ it.name }) as Set
+  def flavorProtoTaskNames = protobufConfig.generateProtoTasks.ofFlavor('flavor-name').collect({ it.name }) as Set
+  def buildTypeProtoTaskNames = protobufConfig.generateProtoTasks.ofBuildType('buildType-name').collect({ it.name }) as Set
+  def variantProtoTaskNames = protobufConfig.generateProtoTasks.ofVariant('variant-name').collect({ it.name }) as Set
 
-test.doLast {
-  assert ['generateProto', 'generateGrpcProto', 'generateTestProto'] as Set ==
-      protobuf.generateProtoTasks.all().collect({ it.name }) as Set
+  def mainSrcDirs = sourceSets.main.java.srcDirs
+  def testSrcDirs = sourceSets.test.java.srcDirs
+  def grpcSrcDirs = sourceSets.grpc.java.srcDirs
 
-  assert ['generateProto'] as Set == protobuf.generateProtoTasks.ofSourceSet('main').collect({ it.name }) as Set
-  assert [] as Set == protobuf.generateProtoTasks.ofTest().collect({ it.name }) as Set
-  assert [] as Set == protobuf.generateProtoTasks.ofNonTest().collect({ it.name }) as Set
-  assert [] as Set == protobuf.generateProtoTasks.ofFlavor('flavor-name').collect({ it.name }) as Set
-  assert [] as Set == protobuf.generateProtoTasks.ofBuildType('buildType-name').collect({ it.name }) as Set
-  assert [] as Set == protobuf.generateProtoTasks.ofVariant('variant-name').collect({ it.name }) as Set
+  test.doLast {
+    assert ['generateProto', 'generateGrpcProto', 'generateTestProto'] as Set == allProtoTaskNames
+    assert ['generateProto'] as Set == mainProtoTaskNames
+    assert [] as Set == testProtoTaskNames
+    assert [] as Set == nonTestProtoTaskNames
+    assert [] as Set == flavorProtoTaskNames
+    assert [] as Set == buildTypeProtoTaskNames
+    assert [] as Set == variantProtoTaskNames
 
-  assertJavaCompileHasProtoGeneratedDir('main', ['java'])
-  assertJavaCompileHasProtoGeneratedDir('test', ['java'])
-  assertJavaCompileHasProtoGeneratedDir('grpc', ['java', 'grpc_output'])
+    def checkGeneratedDir = { Set<File> actualSrcDirs, String sourceSet, Collection<String> plugins ->
+      def baseDir = new File(buildDirFile, "generated/sources/proto/$sourceSet")
+      def expectedDirs = plugins.collect { pluginName ->
+        new File(baseDir, pluginName)
+      } as Set
+      assert actualSrcDirs.containsAll(expectedDirs)
+    }
 
-  // Check generateDescriptorSet option has been honored
-  ['main', 'test'].each { sourceSet ->
-    assertFileExists(false, "$buildDir/generated/sources/proto/$sourceSet/descriptor_set.desc")
-  }
-  assertFileExists(true, "$buildDir/generated/sources/proto/grpc/descriptor_set.desc")
-}
+    checkGeneratedDir(mainSrcDirs, 'main', ['java'])
+    checkGeneratedDir(testSrcDirs, 'test', ['java'])
+    checkGeneratedDir(grpcSrcDirs, 'grpc', ['java', 'grpc_output'])
 
-rootProject.ext {
-  // Shared test utility. Checks a JavaCompile task for the given sourceSet
-  // includes the generated source dirs for the given codegenPlugins, and does
-  // not include any other dirs under the generated code base dir.
-  assertJavaCompileHasProtoGeneratedDir = {
-      Project project, String sourceSet, JavaCompile compileJavaTask, Collection<String> codegenPlugins ->
-    def baseDir = "${project.buildDir}/generated/sources/proto/$sourceSet" as File
-    // The expected direct subdirectories under baseDir
-    def expectedDirs = codegenPlugins.collect { codegenPlugin ->
-      "${project.buildDir}/generated/sources/proto/$sourceSet/$codegenPlugin" as File
-    } as Set
-
-    def actualDirs = new HashSet()
-    compileJavaTask.source.visit { fileVisitDetails ->
-      // If the visited file is or is under a direct subdirectory of baseDir, add
-      // that subdirectory to actualDirs.
-      def file = fileVisitDetails.file
-      while (true) {
-        if (file.parentFile == baseDir) {
-          actualDirs.add file
-        }
-        if (file.parentFile == null) {
-          break
-        }
-        file = file.parentFile
+    def assertFileExists = { boolean exists, String path ->
+      if (exists) {
+        assert (path as File).exists()
+      } else {
+        assert !(path as File).exists()
       }
     }
-    assert expectedDirs == actualDirs
+
+    ['main', 'test'].each { sourceSet ->
+      assertFileExists(false, new File(buildDirFile, "generated/sources/proto/$sourceSet/descriptor_set.desc").absolutePath)
+    }
+    assertFileExists(true, new File(buildDirFile, "generated/sources/proto/grpc/descriptor_set.desc").absolutePath)
   }
 }

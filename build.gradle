@@ -1,15 +1,16 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id 'codenarc'
     id 'idea'
     id 'eclipse'
     id 'groovy'
-    id 'maven'
     id 'maven-publish'
     id 'signing'
 
-    id "com.github.ben-manes.versions" version "0.12.0"
-    id "com.gradle.plugin-publish" version "0.11.0"
-    id "org.gradle.kotlin.kotlin-dsl" version "1.4.9"
+    id "com.github.ben-manes.versions" version "0.51.0"
+    id "com.gradle.plugin-publish" version "1.2.1"
+    id "org.gradle.kotlin.kotlin-dsl" version "4.4.0"
 }
 
 group = 'com.google.protobuf'
@@ -34,7 +35,7 @@ dependencies {
   implementation 'com.google.gradle:osdetector-gradle-plugin:1.7.3'
 
   testImplementation 'junit:junit:4.12'
-  testImplementation('org.spockframework:spock-core:1.0-groovy-2.4') {
+  testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
     exclude module: 'groovy-all'
   }
   testImplementation 'commons-io:commons-io:2.5'
@@ -47,12 +48,12 @@ java {
 
 tasks.register('groovydocJar', Jar) {
     dependsOn groovydoc
-    classifier = 'groovydoc'
+    archiveClassifier = 'groovydoc'
     from groovydoc.destinationDir
 }
 
 codenarc {
-    toolVersion = "1.4"
+    toolVersion = "3.4.0"
     if (System.env.CI == 'true') {
       // Normally html output is more user friendly,
       // but we want a console printable file for CI logs
@@ -60,11 +61,11 @@ codenarc {
     }
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+sourceCompatibility = JavaVersion.VERSION_17
+targetCompatibility = JavaVersion.VERSION_17
 
-tasks.withType(GenerateModuleMetadata) {
-  enabled = false
+tasks.withType(GenerateModuleMetadata).configureEach {
+    enabled = false
 }
 
 File testRepoUrl = layout.buildDirectory.dir('testRepo').get().asFile
@@ -129,28 +130,20 @@ if (!gradle.startParameter.taskNames.intersect(['publishPlugins'])) {
 }
 
 gradlePlugin {
+  website = 'https://github.com/google/protobuf-gradle-plugin'
+  vcsUrl = 'https://github.com/google/protobuf-gradle-plugin'
   plugins {
     protobufPlugin {
       id = "com.google.protobuf"
       implementationClass = "com.google.protobuf.gradle.ProtobufPlugin"
+      displayName = 'Protobuf Plugin for Gradle'
       description = "The Protobuf plugin provides protobuf compilation to your project."
+      tags = ['protobuf', 'protocol-buffers', 'protoc']
     }
   }
 }
 
-pluginBundle {
-  website = 'https://github.com/google/protobuf-gradle-plugin'
-  vcsUrl = 'https://github.com/google/protobuf-gradle-plugin'
-  description = 'The Protobuf plugin provides protobuf compilation to your project.'
 
-  plugins {
-      protobufPlugin {
-          id = 'com.google.protobuf'
-          displayName = 'Protobuf Plugin for Gradle'
-          tags = ['protobuf', 'protocol-buffers', 'protoc']
-      }
-  }
-}
 
 // Required in order to support building a mixed kotlin/groovy project. With out this,
 // we would get a cyclic dependency error, since both compileKotlin and compileGroovy
@@ -159,8 +152,8 @@ pluginBundle {
 tasks.named('compileGroovy') {
     classpath = sourceSets.main.compileClasspath
 }
-tasks.named('compileKotlin') {
-    compileKotlin.classpath += files(compileGroovy.destinationDirectory)
+tasks.withType(KotlinCompile).configureEach {
+    libraries.from(files(tasks.named('compileGroovy').get().destinationDirectory))
 }
 
 tasks.named('test') {
@@ -188,6 +181,8 @@ tasks.named('test') {
   testLogging {
     events = ["standard_out", "standard_error", "started", "passed", "failed", "skipped"]
   }
+
+  useJUnitPlatform()
 
   // Hack for gradle runner test classloader.
   //

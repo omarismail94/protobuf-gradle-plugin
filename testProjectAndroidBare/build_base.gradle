@@ -1,7 +1,7 @@
 android {
-  compileSdkVersion 26
+  compileSdkVersion 30
   buildToolsVersion "26.0.1"
-
+  namespace "io.dont.build.me"
   defaultConfig {
     applicationId "io.dont.build.me"
     minSdkVersion 7
@@ -11,7 +11,7 @@ android {
   }
 
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
 }

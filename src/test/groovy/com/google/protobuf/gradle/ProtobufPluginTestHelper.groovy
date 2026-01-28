@@ -14,15 +14,15 @@ final class ProtobufPluginTestHelper {
   }
 
   static void verifyProjectDir(File projectDir) {
-    ['grpc', 'main', 'test'].each {
-      File generatedSrcDir = new File(projectDir.path, "build/generated/sources/proto/$it")
+    ['grpc', 'main', 'test'].each { String sourceSet ->
+      File generatedSrcDir = new File(projectDir.path, "build/generated/sources/proto/$sourceSet")
       List<File> fileList = []
       generatedSrcDir.eachFileRecurse { file ->
         if (file.path.endsWith('.java')) {
-          fileList.add (file)
+          fileList.add(file)
         }
       }
-      assert fileList.size > 0
+      assert fileList.size() > 0
     }
   }
 
@@ -121,8 +121,8 @@ final class ProtobufPluginTestHelper {
       File projectDir = new File(System.getProperty('user.dir'), 'build/tests/' + testProjectName)
       FileUtils.deleteDirectory(projectDir)
       FileUtils.forceMkdir(projectDir)
-      sourceDirs.each {
-        FileUtils.copyDirectory(new File(System.getProperty("user.dir"), it), projectDir)
+      sourceDirs.each { String dirName ->
+        FileUtils.copyDirectory(new File(System.getProperty("user.dir"), dirName), projectDir)
       }
 
       File settingsFile = new File(projectDir.path, "settings.gradle")
@@ -139,20 +139,25 @@ final class ProtobufPluginTestHelper {
       |
       |  plugins {
       |    id "com.google.protobuf" version "${System.getProperty("protobufPluginVersion", "unknown")}"
+      |    id "org.gradle.toolchains.foojay-resolver-convention" version "0.7.0"
       |  }
+      |}
+      |
+      |plugins {
+      |  id "org.gradle.toolchains.foojay-resolver-convention"
       |}
       |
       |rootProject.name = "$testProjectName"
       """.stripMargin()
 
       if (subProjects) {
-        subProjects.each {
-          File subProjectDir = new File(projectDir.path, it.name)
-          FileUtils.copyDirectory(it, subProjectDir)
+        subProjects.each { File subProject ->
+          File subProjectDir = new File(projectDir.path, subProject.name)
+          FileUtils.copyDirectory(subProject, subProjectDir)
 
           settingsFile << """
-          include ':$it.name'
-          project(':$it.name').projectDir = "\$rootDir/$it.name" as File
+          include ':$subProject.name'
+          project(':$subProject.name').projectDir = "\$rootDir/$subProject.name" as File
           """
         }
       }
