@@ -29,8 +29,10 @@ configurations {
 }
 
 dependencies {
-  compileOnly "com.android.tools.build:gradle:4.1.0"
-  compileOnly "org.jetbrains.kotlin.android:org.jetbrains.kotlin.android.gradle.plugin:1.7.22"
+  compileOnly "com.android.tools.build:gradle-api:8.7.3"
+  compileOnly "com.android.tools.build:builder-test-api:8.7.3"
+  compileOnly "com.android.tools:repository:32.0.0"
+  compileOnly "com.android.tools.analytics-library:protos:32.0.0"
 
   implementation 'com.google.gradle:osdetector-gradle-plugin:1.7.3'
 
